@@ -12,7 +12,8 @@ my_outfile = 'outfile.vhdl'
 import xml.etree.ElementTree as my_el_tree
 tree = my_el_tree.parse(filename)
 root = tree.getroot() 
-rootcopy = root;
+treecopy = my_el_tree.parse(filename)
+rootcopy = treecopy.getroot()
 
 #FIXME when these names are added to source file
 temparchname = "arch_name"
@@ -97,7 +98,6 @@ with open(my_outfile, 'w+') as outfile:
 
     #FIXME test
     num_connections = len(root.findall('connection'))
-    print(num_connections)
 
     while num_connections > 0:
         #Print a signal for every connection
@@ -127,10 +127,10 @@ with open(my_outfile, 'w+') as outfile:
                               srcPrt = temp_src_port),
                               file=outfile
                     )
-                
+
+            #To prevent repeating connections             
             rootcopy.remove(connection)
             num_connections -= 1
-
             for cxn in rootcopy.iter(tag='connection'):
                 if (cxn.get('srcBlk') == temp_src_blk and
                     cxn.get('srcPort') == temp_src_port):
@@ -194,10 +194,10 @@ with open(my_outfile, 'w+') as outfile:
             #Port has multiple bit output
             if int(port.get('width')) >1 and port.get('type') == 'out':
                    
-                print("{blockname}_{portname}({width} downto 0)"
+                print("{blockname}_{portname}({width})"
                     .format(blockname = block.get('name'),
                             portname = port.get('name'),
-                            width = int(port.get('width'))-1
+                            width = int(port.get('width'))
                             )
                     ,file=outfile
                 )
