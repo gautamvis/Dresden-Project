@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<modules>
+
+	<mod name="generic_add0_10" rel_err="8.85E-8" max_err="4.07E-5" delay=".3" power=".3133" area="1823.040011">
+
+ 	<mod name="generic_add0_20" rel_err="9.81E-7" max_err="6.84E-4" delay=".31" power=".2628" area="1501.560007">
+
+ 	<mod name="generic_add0_30" rel_err="1.03E-6" max_err="6.42E-4" delay=".3" power=".3568" area="2045.520013">
+
+ 	<mod name="generic_add0_40" rel_err="6.48E-6" max_err="3.29E-3" delay=".27" power=".4262" area="2428.560002">
+
+ 	<mod name="generic_add0_50" rel_err="2.43E-5" max_err="1.92E-2" delay=".28" power=".3584" area="2067.120017">
+
+ 	<mod name="generic_add0_60" rel_err="3.49E-5" max_err="1.92E-2" delay=".27" power="0.3579" area="2092.320014">
+
+ 	<mod name="generic_add0_70" rel_err="2.16E-04" max_err="1.51E-1" delay=".29" power="0.3086" area="1872.360017">
+
+ 	<mod name="generic_mul_1" rel_err="5.90E-7" max_err="9.16E-4" delay=".83" power="2.49" area="6361.200045">
+
+ 	<mod name="generic_mul_5" rel_err="4.82E-6" max_err="4.58E-3" delay=".82" power="2.56" area="6427.080051">
+
+ 	<mod name="generic_mul_10" rel_err="7.87E-5" max_err="2.7E-1" delay=".87" power="1.92" area="5055.840039">
+
+ 	<mod name="generic_mul_15" rel_err="2.56E-4" max_err="6.3E-1" delay=".84" power="2.42" area="6136.560036">
+
+ 	<mod name="generic_mul_20" rel_err="4.9E-4" max_err="8.1E-1" delay=".84" power="2.44" area="6033.600043">
+
+</modules>
