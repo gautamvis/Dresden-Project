@@ -5,26 +5,26 @@ temparchname = "structural"
 tempentityname = "ser_add"
 
 
-def print_ports(root, outfile):
+#Create a class to store the name, width, and type of a signal
+#These are used multiple times, both when creating the design and testbench file
+class signal:
+
+    def __init__(self, name, width, type):
+        self.name = name
+        self.width = width
+        self.type = type
+
+#Create an array of signals(sig_list) used in both design file and testbench file
+def store_signals(root, sig_list):
 
     #Go through each port of each block
     cxn_list = root.findall('connection')
     
-    #These variables count number of ports/ ports visited
-    #to ensure no semicolon is printed after the last port
-    total_num_ports = 0;
-    for block in root.findall('block'):
-        total_num_ports += len(block.findall('port'))
-
-    iteration_counter = 0;
-    
     for block in root.findall('block'):
         for port in block:
             
-            iteration_counter += 1
-            
             #Search through list of connections, to determine if
-            #port has an internal connection. If so, print nothing
+            #port has an internal connection. If so, do nothing
             #If signal is found, bool allows loop to continue
             continue_bool = 0;
 
@@ -36,39 +36,58 @@ def print_ports(root, outfile):
                      (cxn.get('destBlk') == block.get('name') and
                     cxn.get('destPort') == port.get('name') ) ):
 
-                        continue_bool = 1
-                        break
+                        continue_bool = 1;
+                        break;
             if continue_bool == 1:
                 continue
-            
-            #Print port with multiple bit input/output
-            if(int(port.get('width')) > 1):
-                print("    {blockname}_{portname} : {ptype} std_logic_vector({width} downto 0)"
-                      .format(blockname = block.get('name'),
-                            portname = port.get('name'),
-                            ptype = port.get('type'),
-                            width = int(port.get('width'))-1)
-                      ,file=outfile
-                      ,end=""
-                      
-                )
-            #Print port with single bit input/output
-            else:
-                print("    {blockname}_{portname} : {ptype} std_logic"
-                      .format(blockname = block.get('name'),
-                            portname = port.get('name'),
-                            ptype = port.get('type'))
-                      ,file=outfile
-                      ,end=""
-                      
-                )
 
-            #Don't print semicolon for last port
-            if iteration_counter < total_num_ports:
-                print(";", file=outfile)
+            #If no internal connection found, then add this port to the list
+            temp_name = block.get('name') + '_' + port.get('name')
+            temp_width = int(port.get('width'))
+            temp_type = port.get('type')
+            temp_sig = signal(temp_name, temp_width, temp_type)
+            
+            sig_list.append(temp_sig)
+
+
+
+def print_ports(sig_list, outfile):
+
+    #Prevents extra end semicolon
+    iteration_counter = 0
+    
+    total_num_ports = len(sig_list)
+   
+    for sig in sig_list:
+
+        iteration_counter += 1
+        
+        #Print port with multiple bit input/output
+        if sig.width > 1:
+            print("    {sname} : {ptype} std_logic_vector({width} downto 0)"
+                  .format(sname = sig.name,
+                        ptype = sig.type,
+                        width = sig.width-1)
+                  ,file=outfile
+                  ,end=""
+                  
+            )
+        #Print port with single bit input/output
+        else:
+            print("    {sname} : {ptype} std_logic"
+                  .format(sname = sig.name,
+                        ptype = sig.type)
+                  ,file=outfile
+                  ,end=""
+                  
+            )
+
+        #Don't print semicolon for last port
+        if iteration_counter < total_num_ports:
+            print(";", file=outfile)
 
 #Print inputs and outputs
-def print_ins_outs(root, outfile):
+def print_ins_outs(sig_list, outfile):
     print(
           "entity {entity} is \n"
           "  port( \n"
@@ -77,7 +96,7 @@ def print_ins_outs(root, outfile):
 
     )
     
-    print_ports(root, outfile)
+    print_ports(sig_list, outfile)
     
     print('''
           
@@ -246,7 +265,7 @@ def print_blocks(root, outfile):
 
 
 #Print inputs and outputs
-def print_ins_outs_clockreset(root, outfile):
+def print_ins_outs_clockreset(root, sig_list, outfile):
     print(
           "entity {entity} is \n"
           "  port( \n"
@@ -254,69 +273,44 @@ def print_ins_outs_clockreset(root, outfile):
           ,file=outfile
           
     )
-    #Go through each port of each block
-    cxn_list = root.findall('connection')
-  
-    #These variables count number of ports/ ports visited
-    #to ensure no semicolon is printed after the last port
-    total_num_blocks = 0;
-    for block in root.findall('block'):
-      total_num_blocks += 1
-
-    iteration_counter = 0;
     
-    for block in root.findall('block'):
-        for port in block:
-            
-            #Search through list of connections, to determine if
-            #port has an internal connection. If so, print nothing
-            #If signal is found, bool allows loop to continue
-            continue_bool = 0;
-            
-            for cxn in cxn_list:
-                
-                if ( (cxn.get('srcBlk') == block.get('name') and
-                      cxn.get('srcPort') == port.get('name') ) or
-                    
-                    (cxn.get('destBlk') == block.get('name') and
-                     cxn.get('destPort') == port.get('name') ) ):
-                        
-                        continue_bool = 1;
-                        break;
-            if continue_bool == 1:
-                continue
-        
-            #Print port with multiple bit input/output
-            if(int(port.get('width')) > 1):
-                print("\n    {blockname}_{portname} : {ptype} std_logic_vector({width} downto 0);"
-                      .format(blockname = block.get('name'),
-                              portname = port.get('name'),
-                              ptype = port.get('type'),
-                              width = int(port.get('width'))-1)
-                      ,file=outfile
-                      ,end=""
-                      
-                      )
-            #Print port with single bit input/output
-            else:
-                print("\n    {blockname}_{portname} : {ptype} std_logic;"
-                      .format(blockname = block.get('name'),
-                              portname = port.get('name'),
-                              ptype = port.get('type'))
-                      ,file=outfile
-                      ,end=""
-                      
-                )
-        
-        print("\n    {blockname}_clk : in std_logic;"
-              "\n    {blockname}_reset : in std_logic"
-              .format(blockname = block.get('name'))
-              ,file=outfile, end=""
-        )
+    iteration_counter = 0
+    
+    total_num_blocks = len(root.findall(name='block'))
+   
+    for sig in sig_list:
+    
         iteration_counter += 1
-        #Don't print semicolon for last port
-        if iteration_counter < total_num_blocks:
-            print(";\n", file=outfile)
+        
+        #Print port with multiple bit input/output
+        if sig.width > 1:
+            print("    {sname} : {ptype} std_logic_vector({width} downto 0)"
+                  .format(sname = sig.name,
+                        ptype = sig.type,
+                        width = sig.width - 1)
+                  ,file=outfile
+                  ,end=""
+                  
+            )
+        #Print port with single bit input/output
+        else:
+            print("    {sname} : {ptype} std_logic"
+                  .format(sname = sig.name,
+                        ptype = sig.type)
+                  ,file=outfile
+                  ,end=""
+                  
+            )
+    
+    print("\n    {blockname}_clk : in std_logic;"
+          "\n    {blockname}_reset : in std_logic"
+          .format(blockname = sig.name)
+          ,file=outfile, end=""
+    )
+    iteration_counter += 1
+    #Don't print semicolon for last port
+    if iteration_counter < total_num_blocks:
+        print(";\n", file=outfile)
 
 
     print(

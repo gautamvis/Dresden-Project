@@ -28,11 +28,15 @@ def print_biquad(num_stages, outfile):
         print_cxn('delay1', 'q', 'mul_b2', 'a', stage, outfile)
 
 
-        print_cxn('mul_bo', 'r', 'add_out0', 'a', stage, outfile)
+        print_cxn('mul_b0', 'r', 'add_out0', 'a', stage, outfile)
         print_cxn('mul_a1', 'r', 'add_in1', 'a', stage, outfile)
         print_cxn('mul_b1', 'r', 'add_out1', 'b', stage, outfile)
         print_cxn('mul_a2', 'r', 'add_in1', 'b', stage, outfile)
         print_cxn('mul_b2', 'r', 'add_out1', 'a', stage, outfile)
+        
+        print_cxn('add_in0', 'cin', 'add_in1', 'cout', stage, outfile)
+        print_cxn('add_out0', 'cin', 'add_out1', 'cout', stage, outfile)
+
         
         #Connecting output of one stage to input of next
         #For the first stage, add_in0's 'b' port connected to input
@@ -76,7 +80,7 @@ def print_blocks(block_name, block_type, instance_type, num_blocks, stage_num, o
 
     for block in range(num_blocks):
         
-        print('  <block name="{bname}{num}_stg{stage}" type="{btype}" instance_type="{ins_type}"/>'
+        print('  <block name="{bname}{num}_stg{stage}" type="{btype}" instance_type="{ins_type}">'
               .format(bname=block_name, num=block, stage=stage_num,
                       btype=block_type, ins_type=instance_type)
               ,file=outfile

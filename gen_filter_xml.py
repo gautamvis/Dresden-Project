@@ -18,8 +18,8 @@ from argparse import ArgumentParser
 
 #FIXME for testing
 my_outfile = "xmloutput.xml"
-filter_type = "FIR"
-num_stages = 3;
+filter_type = "biquad"
+num_stages = 1;
 
 
 with open(my_outfile, 'w+') as outfile:

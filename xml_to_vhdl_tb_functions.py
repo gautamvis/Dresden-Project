@@ -6,14 +6,6 @@ temparchname = "test"
 tempentityname = "ser_add"
 
 
-#Class to store name, width, type of each signal
-class signal:
-
-    def __init__(self, name, width, type):
-        self.name = name
-        self.width = width
-        self.type = type
-
 def print_component(root, sig_list, outfile):
 
     print('''architecture {arch} of {ent}_tb is 
@@ -27,7 +19,6 @@ def print_component(root, sig_list, outfile):
     )
     
     
-    store_signals(root, sig_list)
     print_ports_tb(sig_list, outfile)
     
     print('''
@@ -39,40 +30,6 @@ end component;
           .format(entity = tempentityname)
           ,file=outfile
     )
-
-#Store relevant info about the signals (name, size, type) in an array
-def store_signals(root, sig_list):
-
-    #Go through each port of each block
-    cxn_list = root.findall('connection')
-    
-    for block in root.findall('block'):
-        for port in block:
-            
-            #Search through list of connections, to determine if
-            #port has an internal connection. If so, do nothing
-            #If signal is found, bool allows loop to continue
-            continue_bool = 0;
-
-            for cxn in cxn_list:
-
-                if ( (cxn.get('srcBlk') == block.get('name') and
-                    cxn.get('srcPort') == port.get('name') ) or
-                     
-                     (cxn.get('destBlk') == block.get('name') and
-                    cxn.get('destPort') == port.get('name') ) ):
-
-                        continue_bool = 1;
-                        break;
-            if continue_bool == 1:
-                continue
-
-            temp_name = block.get('name') + '_' + port.get('name')
-            temp_width = int(port.get('width'))
-            temp_type = port.get('type')
-            temp_sig = signal(temp_name, temp_width, temp_type)
-            sig_list.append(temp_sig)
-
 
 def print_ports_tb(sig_list, outfile):
 
@@ -285,7 +242,7 @@ def print_test_process(root, sig_list, outfile):
         
         #Sets it up so that the cout port of the last adder is the one considered
         else :
-            out_buffer_name = sig.name
+            out_buffer_name = sig.name + "_buffer"
 
 
     print('''
