@@ -1,13 +1,9 @@
 #xml to vhdl helper functions - testbench
 import xml_to_vhdl_design_functions
 
-#FIXME when these details are added to the xml file
-temparchname = "test"
-tempentityname = "ser_add"
-
 #Print some generic info, then run the 'print_ports' function
 
-def print_component(root, port_list, outfile):
+def print_component(root, port_list, arch_name, entity_name):
 
     print('''architecture {arch} of {ent}_tb is 
     
@@ -15,12 +11,11 @@ def print_component(root, port_list, outfile):
     
     port('''
     
-          .format(arch = temparchname, ent = tempentityname)
-          ,file=outfile
+          .format(arch = arch_name, ent = entity_name)
     )
     
     
-    print_ports_tb(port_list, outfile)
+    print_ports_tb(port_list)
     
     print('''
 ); 
@@ -28,11 +23,10 @@ def print_component(root, port_list, outfile):
 end component;
           
           '''
-          .format(entity = tempentityname)
-          ,file=outfile
+          .format(entity = entity_name)
     )
 
-def print_ports_tb(port_list, outfile):
+def print_ports_tb(port_list):
 
     #To make sure not to print an extra semicolon
     iteration_counter = 0
@@ -47,7 +41,6 @@ def print_ports_tb(port_list, outfile):
                     .format(sname = port.name,
                         stype = port.type,
                         width = port.width - 1)
-                    ,file=outfile
                     ,end=""
                   
             )
@@ -56,19 +49,18 @@ def print_ports_tb(port_list, outfile):
         else :
             print('    {sname} : {stype} std_logic'
                     .format(sname = port.name, stype = port.type)
-                    ,file=outfile
                     ,end=""
             )
         
         #Don't print an extra semicolon at the end
         if iteration_counter < len(port_list):
-            print(';', file=outfile)
+            print(';')
             
             
 
 #Print functions to convert string to std_vec and vice versa in VHDL
 #Needed for the VHDL test process
-def print_string_to_stdvec_fxns(outfile):
+def print_string_to_stdvec_fxns():
 
     print('''    function str_to_stdvec(inp: string) return std_logic_VECTOR is
 		variable temp: std_logic_VECTOR(inp'range) := (others => 'X');
@@ -97,12 +89,11 @@ def print_string_to_stdvec_fxns(outfile):
 	end function stdvec_to_str; 
     
     '''
-    ,file=outfile
     )
 
 
 #Print the signals
-def print_signals_tb(port_list, outfile):
+def print_signals_tb(port_list):
 
     #Go through the list of ports
     for port in port_list:
@@ -112,7 +103,6 @@ def print_signals_tb(port_list, outfile):
             print('    signal {sname}_buffer : std_logic_vector({width} downto 0); \n'
                     .format(sname = port.name,
                         width = port.width - 1)
-                    ,file=outfile
                     ,end=""
                   
             )
@@ -120,22 +110,21 @@ def print_signals_tb(port_list, outfile):
         else:
             print('    signal {sname}_buffer : std_logic; \n'
                     .format(sname = port.name)
-                    ,file=outfile
                     ,end=""
                   
             )
 
 
     #Done signal
-    print("    signal done : std_logic := '0'; \n", file=outfile)
+    print("    signal done : std_logic := '0'; \n")
     
 
 
-def print_port_map_tb(port_list, outfile):
+def print_port_map_tb(port_list):
 
-    print ('begin \n', file=outfile)
-    print('DUT : ser_add \n', file=outfile)
-    print('    port map( \n', file=outfile)
+    print ('begin \n')
+    print('DUT : ser_add \n')
+    print('    port map( \n')
     
     #To prevent extra semicolon
     iteration_counter = 0
@@ -150,30 +139,28 @@ def print_port_map_tb(port_list, outfile):
                   .format(sname = port.name,
                         ptype = port.type,
                         width = port.width -1)
-                  ,file=outfile
                   ,end=""
                   )
         #Print port with single bit input/output
         else:
             print('    {sname} => {sname}_buffer'
                   .format(sname = port.name)
-                  ,file=outfile
                   ,end=""
                   
             )
 
         #Prevent extra semicolon
         if iteration_counter < len(port_list):
-            print(',', file=outfile)
+            print(',')
 
     print('''
 );
-          ''', file=outfile
+          '''
           )
     
     
 #Print the entire testing process
-def print_test_process(root, port_list, outfile):
+def print_test_process(root, port_list):
 
     #Used to determine length of strings provided in input files,
     #and written to the output file
@@ -207,7 +194,6 @@ def print_test_process(root, port_list, outfile):
     
             '''
             .format(in_w_minusone = in_width - 1, in_w = in_width, out_w = out_width)
-            ,file=outfile
     )
 
     
@@ -228,7 +214,6 @@ def print_test_process(root, port_list, outfile):
                   .format(sname = port.name,
                           num1 = temp_int + port.width - 1,
                           num2 = temp_int)
-                  ,file=outfile
             )
             temp_int += port.width
 
@@ -238,7 +223,6 @@ def print_test_process(root, port_list, outfile):
         
             print("     {sname}_buffer <= '0'; "
                   .format(sname = port.name)
-                  ,file=outfile
             )
         
         #These next two lines determine the port whose
@@ -279,13 +263,11 @@ def print_test_process(root, port_list, outfile):
     end test;'''
         .format(outport = out_port_name
                 ,outbuffer = out_buffer_name)
-        ,file=outfile
         )
 
 
-#Helper function needed when reading in lines from input text file
-#And outputting to the output file
-#Determines the largest input and
+#Helper function needed when reading in lines from input text file and when outputting
+#Determines the largest input and output ports
 def find_input_output_width(root, input_width, out_width):
 
      #Go through each port of each block
@@ -297,7 +279,7 @@ def find_input_output_width(root, input_width, out_width):
             
             #Search through list of connections, to determine if
             #port has an internal connection. If so, continue
-            continue_bool = 0;
+            continue_p = false;
 
             for cxn in cxn_list:
 
@@ -307,9 +289,9 @@ def find_input_output_width(root, input_width, out_width):
                      (cxn.get('destBlk') == block.get('name') and
                     cxn.get('destPort') == port.get('name') ) ):
 
-                        continue_bool = 1
+                        continue_p = true
                         break
-            if continue_bool == 1:
+            if continue_p == true:
                 continue
             
             #If port doesn't have a cxn, it is an input/output port

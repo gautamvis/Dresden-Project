@@ -107,7 +107,7 @@ def print_cxn(srcBlk, srcPort, destBlk, destPort, stage, outfile, cxntype):
 
 
     #Connection within a filter
-    if cxntype == internal:
+    if cxntype == "internal":
         print('  <connection srcBlk="{sb}_stg{num}" srcPort="{sp}" destBlk="{db}_stg{num}" destPort="{dp}"/>'
               .format(sb=srcBlk, sp=srcPort, num = stage, db=destBlk, dp=destPort)
               ,file=outfile
