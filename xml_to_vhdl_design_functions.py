@@ -1,73 +1,77 @@
 #xml to vhdl helper functions - design
 
+#These functions are each used to print a different aspect of the design file
+#(port map, signal declarations, etc)
+
 #FIXME when these names are added to source file
 temparchname = "structural"
 tempentityname = "ser_add"
 
 
-#Create a class to store the name, width, and type of a signal
+#Create a class to store the name, width, and type of a port
 #These are used multiple times, both when creating the design and testbench file
-class signal:
+class port:
 
     def __init__(self, name, width, type):
         self.name = name
         self.width = width
         self.type = type
 
-#Create an array of signals(sig_list) used in both design file and testbench file
-def store_signals(root, sig_list):
+#Create an array of ports(port_list) used in both design file and testbench file
+def store_ports(root, port_list):
 
     #Go through each port of each block
     cxn_list = root.findall('connection')
     
     for block in root.findall('block'):
-        for port in block:
+        for prt in block:
             
             #Search through list of connections, to determine if
-            #port has an internal connection. If so, do nothing
+            #there is a connection onvolving the port. If so, do nothing
             #If signal is found, bool allows loop to continue
             continue_bool = 0;
 
             for cxn in cxn_list:
 
                 if ( (cxn.get('srcBlk') == block.get('name') and
-                    cxn.get('srcPort') == port.get('name') ) or
+                    cxn.get('srcPort') == prt.get('name') ) or
                      
                      (cxn.get('destBlk') == block.get('name') and
-                    cxn.get('destPort') == port.get('name') ) ):
+                    cxn.get('destPort') == prt.get('name') ) ):
 
                         continue_bool = 1;
                         break;
             if continue_bool == 1:
                 continue
 
-            #If no internal connection found, then add this port to the list
-            temp_name = block.get('name') + '_' + port.get('name')
-            temp_width = int(port.get('width'))
-            temp_type = port.get('type')
-            temp_sig = signal(temp_name, temp_width, temp_type)
+            #If no connection found, then add this port to the array
+            temp_name = block.get('name') + '_' + prt.get('name')
+            temp_width = int(prt.get('width'))
+            temp_type = prt.get('type')
+            temp_port = port(temp_name, temp_width, temp_type)
             
-            sig_list.append(temp_sig)
+            port_list.append(temp_port)
 
 
+#Function to print all the ports in the design
+def print_ports(port_list, outfile):
 
-def print_ports(sig_list, outfile):
-
-    #Prevents extra end semicolon
+    #Prevent extra semicolon at the end
     iteration_counter = 0
     
-    total_num_ports = len(sig_list)
+    
+    total_num_ports = len(port_list)
    
-    for sig in sig_list:
+    for port in port_list:
 
         iteration_counter += 1
         
         #Print port with multiple bit input/output
-        if sig.width > 1:
+        if port.width > 1:
             print("    {sname} : {ptype} std_logic_vector({width} downto 0)"
-                  .format(sname = sig.name,
-                        ptype = sig.type,
-                        width = sig.width-1)
+                  .format(sname = port.name,
+                        ptype = port.type,
+                        width = port.width-1)
                   ,file=outfile
                   ,end=""
                   
@@ -75,8 +79,8 @@ def print_ports(sig_list, outfile):
         #Print port with single bit input/output
         else:
             print("    {sname} : {ptype} std_logic"
-                  .format(sname = sig.name,
-                        ptype = sig.type)
+                  .format(sname = port.name,
+                        ptype = port.type)
                   ,file=outfile
                   ,end=""
                   
@@ -86,8 +90,8 @@ def print_ports(sig_list, outfile):
         if iteration_counter < total_num_ports:
             print(";", file=outfile)
 
-#Print inputs and outputs
-def print_ins_outs(sig_list, outfile):
+#Print inputs and outputs (print generic info, and then run the print ports function above)
+def print_ins_outs(port_list, outfile):
     print(
           "entity {entity} is \n"
           "  port( \n"
@@ -96,7 +100,8 @@ def print_ins_outs(sig_list, outfile):
 
     )
     
-    print_ports(sig_list, outfile)
+    
+    print_ports(port_list, outfile)
     
     print('''
           
@@ -110,6 +115,7 @@ end {entity};
           ,file=outfile
     )
 
+#Print each signal specified in the xml
 def print_signals(root, outfile):
 
     print('''architecture {arch} of {entity} is
@@ -122,21 +128,29 @@ def print_signals(root, outfile):
     #Print a signal for every connection
     #Get source block, source port, and width to do this
     
-    #Dictionary of signals
+    #Dictionary of signals - this prevents repeating signals from being printed
+    #If two signals com from the same port, the signal is only printed once
     signal_dict ={}
+    
+    #Get the ports involved in each connection
     for connection in root.iter('connection'):
         temp_src_blk = str(connection.get('srcBlk'))
         temp_src_port = str(connection.get('srcPort'))
         signal_name = temp_src_blk + "_" + temp_src_port
         
+        #Locate which port in which block this connection involves
         for block in root.iter('block'):
             if block.get('name') == temp_src_blk:
                 for port in block.iter('port'):
                     if port.get('name') == temp_src_port:
                         temp_width = int(port.get('width'))
 
+                        #If signal name already exists in the dictionary, it is overwritten
+                        #This prevents repeat signals
                         signal_dict[signal_name] = temp_width
 
+
+    #Print each signal in the dictionary of signals
     for signal in signal_dict:
         
         if signal_dict[signal] > 1:
@@ -156,7 +170,7 @@ def print_blocks(root, outfile):
     print('\nbegin\n', file=outfile)
     
     #This var counts number of ports visitied
-    #to ensure no comma is printed after the last port
+    #to ensure no extra comma is printed after the last port
     iteration_counter = 0;
     num_ports = 0;
 
@@ -189,10 +203,12 @@ def print_blocks(root, outfile):
             #Print the input/output/connection of the port
 
             #Search to see if the port has a connection
-            #If not, defaults to external input/output
+            #If it does, connect the port to a buffer
+            #If not, the port by default is set to have an external input/output
             temp_bool = 0
             for cxn in temp_cxn_list:
                 
+                #If connection exists:
                 if ( (cxn.get('srcBlk') == block.get('name') and
                     cxn.get('srcPort') == port.get('name') ) or
                      
@@ -204,16 +220,22 @@ def print_blocks(root, outfile):
                          ,file=outfile
                          ,end=""
                    )
-                   #To ensure no comma printed after last port
+                   
+                   #Don't print a comma after last port
                    if iteration_counter < num_ports:
                        print (", ", file=outfile)
                    
                    temp_bool = 1
                    break;
-
+        
+            #If a connection was printed, continue with the loop
             if temp_bool == 1:
                    continue
-                 
+               
+               
+            #If no connection found, the port is either an input or output port
+            #The following lines deal with each of these cases
+        
             #Port has multiple bit output
             if int(port.get('width')) >1 and port.get('type') == 'out':
                    
@@ -264,8 +286,11 @@ def print_blocks(root, outfile):
 ################################
 
 
+#Logic for these functions is exactly the same as above,
+#With slight changes due to addition of clock and reset
+
 #Print inputs and outputs
-def print_ins_outs_clockreset(root, sig_list, outfile):
+def print_ins_outs_clockreset(root, port_list, outfile):
     print(
           "entity {entity} is \n"
           "  port( \n"
@@ -278,16 +303,16 @@ def print_ins_outs_clockreset(root, sig_list, outfile):
     
     total_num_blocks = len(root.findall(name='block'))
    
-    for sig in sig_list:
+    for port in port_list:
     
         iteration_counter += 1
         
         #Print port with multiple bit input/output
-        if sig.width > 1:
+        if port.width > 1:
             print("    {sname} : {ptype} std_logic_vector({width} downto 0)"
-                  .format(sname = sig.name,
-                        ptype = sig.type,
-                        width = sig.width - 1)
+                  .format(sname = port.name,
+                        ptype = port.type,
+                        width = port.width - 1)
                   ,file=outfile
                   ,end=""
                   
@@ -295,8 +320,8 @@ def print_ins_outs_clockreset(root, sig_list, outfile):
         #Print port with single bit input/output
         else:
             print("    {sname} : {ptype} std_logic"
-                  .format(sname = sig.name,
-                        ptype = sig.type)
+                  .format(sname = port.name,
+                        ptype = port.type)
                   ,file=outfile
                   ,end=""
                   
@@ -304,7 +329,7 @@ def print_ins_outs_clockreset(root, sig_list, outfile):
     
     print("\n    {blockname}_clk : in std_logic;"
           "\n    {blockname}_reset : in std_logic"
-          .format(blockname = sig.name)
+          .format(blockname = port.name)
           ,file=outfile, end=""
     )
     iteration_counter += 1

@@ -5,8 +5,9 @@ import xml_to_vhdl_design_functions
 temparchname = "test"
 tempentityname = "ser_add"
 
+#Print some generic info, then run the 'print_ports' function
 
-def print_component(root, sig_list, outfile):
+def print_component(root, port_list, outfile):
 
     print('''architecture {arch} of {ent}_tb is 
     
@@ -19,7 +20,7 @@ def print_component(root, sig_list, outfile):
     )
     
     
-    print_ports_tb(sig_list, outfile)
+    print_ports_tb(port_list, outfile)
     
     print('''
 ); 
@@ -31,40 +32,42 @@ end component;
           ,file=outfile
     )
 
-def print_ports_tb(sig_list, outfile):
+def print_ports_tb(port_list, outfile):
 
     #To make sure not to print an extra semicolon
     iteration_counter = 0
     
-    for sig in sig_list:
+    for port in port_list:
 
         iteration_counter += 1
         
-         #Print signal with multiple bit input/output (std_logic_vector)
-        if(sig.width > 1):
+        #Print port with multiple bit input/output (std_logic_vector)
+        if(port.width > 1):
             print('    {sname} : {stype} std_logic_vector({width} downto 0)'
-                    .format(sname = sig.name,
-                        stype = sig.type,
-                        width = sig.width - 1)
+                    .format(sname = port.name,
+                        stype = port.type,
+                        width = port.width - 1)
                     ,file=outfile
                     ,end=""
                   
             )
             
-        #Print signal with single bit input/output (std_logic)
+        #Print port with single bit input/output (std_logic)
         else :
             print('    {sname} : {stype} std_logic'
-                    .format(sname = sig.name, stype = sig.type)
+                    .format(sname = port.name, stype = port.type)
                     ,file=outfile
                     ,end=""
             )
-            
-        if iteration_counter < len(sig_list):
+        
+        #Don't print an extra semicolon at the end
+        if iteration_counter < len(port_list):
             print(';', file=outfile)
             
             
 
-
+#Print functions to convert string to std_vec and vice versa in VHDL
+#Needed for the VHDL test process
 def print_string_to_stdvec_fxns(outfile):
 
     print('''    function str_to_stdvec(inp: string) return std_logic_VECTOR is
@@ -98,25 +101,25 @@ def print_string_to_stdvec_fxns(outfile):
     )
 
 
+#Print the signals
+def print_signals_tb(port_list, outfile):
 
-def print_signals_tb(sig_list, outfile):
+    #Go through the list of ports
+    for port in port_list:
 
-
-    for sig in sig_list:
-
-        #Print signal with multiple bit input/output (std_logic_vector)
-        if(sig.width > 1):
+        #Print port with multiple bit input/output (std_logic_vector)
+        if(port.width > 1):
             print('    signal {sname}_buffer : std_logic_vector({width} downto 0); \n'
-                    .format(sname = sig.name,
-                        width = sig.width - 1)
+                    .format(sname = port.name,
+                        width = port.width - 1)
                     ,file=outfile
                     ,end=""
                   
             )
-        #Print sig with single bit input/output (std_logic)
+        #Print port with single bit input/output (std_logic)
         else:
             print('    signal {sname}_buffer : std_logic; \n'
-                    .format(sname = sig.name)
+                    .format(sname = port.name)
                     ,file=outfile
                     ,end=""
                   
@@ -128,7 +131,7 @@ def print_signals_tb(sig_list, outfile):
     
 
 
-def print_port_map_tb(sig_list, outfile):
+def print_port_map_tb(port_list, outfile):
 
     print ('begin \n', file=outfile)
     print('DUT : ser_add \n', file=outfile)
@@ -137,30 +140,30 @@ def print_port_map_tb(sig_list, outfile):
     #To prevent extra semicolon
     iteration_counter = 0
     
-    for sig in sig_list:
+    for port in port_list:
     
         iteration_counter += 1
         
         #Print port with multiple bit input/output
-        if(sig.width > 1):
+        if(port.width > 1):
             print('    {sname} => {sname}_buffer({width} downto 0)'
-                  .format(sname = sig.name,
-                        ptype = sig.type,
-                        width = sig.width -1)
+                  .format(sname = port.name,
+                        ptype = port.type,
+                        width = port.width -1)
                   ,file=outfile
                   ,end=""
                   )
         #Print port with single bit input/output
         else:
             print('    {sname} => {sname}_buffer'
-                  .format(sname = sig.name)
+                  .format(sname = port.name)
                   ,file=outfile
                   ,end=""
                   
             )
 
         #Prevent extra semicolon
-        if iteration_counter < len(sig_list):
+        if iteration_counter < len(port_list):
             print(',', file=outfile)
 
     print('''
@@ -169,8 +172,8 @@ def print_port_map_tb(sig_list, outfile):
           )
     
     
-    
-def print_test_process(root, sig_list, outfile):
+#Print the entire testing process
+def print_test_process(root, port_list, outfile):
 
     #Used to determine length of strings provided in input files,
     #and written to the output file
@@ -179,7 +182,8 @@ def print_test_process(root, sig_list, outfile):
     in_width, out_width = find_input_output_width(root, in_width, out_width)
     
     
-    #Print generic test case procedure
+    #Get the input from file and convert to vectors
+    #Currently reading in test values from text file named 'sample_input.txt'
     print('''\n Read_input : process
         file vector_file : text;
         file output_file : text;
@@ -214,36 +218,43 @@ def print_test_process(root, sig_list, outfile):
     #Variables to keep track of which output ports will be written to outfile
     out_port_name = ""; out_buffer_name = "";
     
-    for sig in sig_list:
+    for port in port_list:
         
-        #FIMXE? - only get non-carry bits from input
-        if sig.width > 1 and sig.type == 'in':
+        #FIMXE? - As of now, only taking non-carry bits from input
+        #Carry bits are set to 0 by default
+        if port.width > 1 and port.type == 'in':
             
             print("     {sname}_buffer <= stimulus_in({num1} downto {num2}); "
-                  .format(sname = sig.name,
-                          num1 = temp_int + sig.width - 1,
+                  .format(sname = port.name,
+                          num1 = temp_int + port.width - 1,
                           num2 = temp_int)
                   ,file=outfile
             )
-            temp_int += sig.width
+            temp_int += port.width
 
                   
-        #FIXME? carry bits are input as 0, instead of read from file
-        elif sig.type == 'in':
+        #Set carry bits to 0 instead of inputting
+        elif port.type == 'in':
         
             print("     {sname}_buffer <= '0'; "
-                  .format(sname = sig.name)
+                  .format(sname = port.name)
                   ,file=outfile
             )
-
-        #The port whose contents will be written to output file
-        elif sig.width == out_width:
-            out_port_name = sig.name
         
-        #Sets it up so that the cout port of the last adder is the one considered
-        else :
-            out_buffer_name = sig.name + "_buffer"
+        #These next two lines determine the port whose
+        #   contents will be written to output file
+        #This is determined by taking the output port mentioned
+        #   which has the largest output width (specified in the xml)
 
+        elif port.width == out_width:
+            out_port_name = port.name
+        
+        else :
+            out_buffer_name = port.name + "_buffer"
+
+
+    #Print the sum/product obtained from each different input value
+    #   to the output file(currently named 'sample_output.txt'
 
     print('''
                     wait for 2 ns;
@@ -271,8 +282,10 @@ def print_test_process(root, sig_list, outfile):
         ,file=outfile
         )
 
-#Needed when reading in lines from input text file
+
+#Helper function needed when reading in lines from input text file
 #And outputting to the output file
+#Determines the largest input and
 def find_input_output_width(root, input_width, out_width):
 
      #Go through each port of each block
@@ -299,7 +312,9 @@ def find_input_output_width(root, input_width, out_width):
             if continue_bool == 1:
                 continue
             
-            #FIXME? if want to input C_in values
+            #If port doesn't have a cxn, it is an input/output port
+            #FIXME? - Currently not considering inputting carry bits
+            #         only considering larger input ports
             if port.get('type') == 'in' and int(port.get('width')) > 1:
                 input_width += int(port.get('width'))
             

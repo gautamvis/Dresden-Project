@@ -28,7 +28,7 @@ import xml.etree.ElementTree as el_tree
 
 #FIXME - these vars are set to avoid parsing while testing. Remove later
 infile = 'sample_input.xml'
-designfile = "designfile.vhdl"
+designfile = "newdesignfile.vhdl"
 tbfile = "tbfile.vhdl"
 clockreset = "off"
 
@@ -40,9 +40,9 @@ root = tree.getroot()
 temparchname = "structural"
 tempentityname = "ser_add"
 
-#Store certain 'signals'(name, type, width) that are repeatedly used in an array
-sig_list = []
-xml_to_vhdl_design_functions.store_signals(root, sig_list)
+#Store certain ports (name, type, width) that are repeatedly used in an array
+port_list = []
+xml_to_vhdl_design_functions.store_ports(root, port_list)
 
 #Print all output to the design file
 with open(designfile, 'w+') as outfile:
@@ -60,14 +60,14 @@ with open(designfile, 'w+') as outfile:
     #Separate functions to print in/out ports, to print the connections, and to print the blocks
     if clockreset == 'on':
     
-        xml_to_vhdl_design_functions.print_ins_outs_clockreset(root, sig_list, outfile)
+        xml_to_vhdl_design_functions.print_ins_outs_clockreset(root, port_list, outfile)
         xml_to_vhdl_design_functions.print_signals(root, outfile)
         xml_to_vhdl_design_functions.print_blocks_clockreset(root, outfile)
 
     #If not, run the set of functions without clock/reset ports
     else:
     
-        xml_to_vhdl_design_functions.print_ins_outs(sig_list, outfile)
+        xml_to_vhdl_design_functions.print_ins_outs(port_list, outfile)
         xml_to_vhdl_design_functions.print_signals(root, outfile)
         xml_to_vhdl_design_functions.print_blocks(root, outfile)
 
@@ -96,11 +96,11 @@ with open(tbfile, 'w+') as outfile:
     #  a string to a std_vec and vice versa in vhdl, to print the signals, to print the
     #  the port map, and to print the process
 
-    xml_to_vhdl_tb_functions.print_component(root, sig_list, outfile)
+    xml_to_vhdl_tb_functions.print_component(root, port_list, outfile)
     xml_to_vhdl_tb_functions.print_string_to_stdvec_fxns(outfile)
-    xml_to_vhdl_tb_functions.print_signals_tb(sig_list, outfile)
-    xml_to_vhdl_tb_functions.print_port_map_tb(sig_list, outfile)
-    xml_to_vhdl_tb_functions.print_test_process(root, sig_list, outfile)
+    xml_to_vhdl_tb_functions.print_signals_tb(port_list, outfile)
+    xml_to_vhdl_tb_functions.print_port_map_tb(port_list, outfile)
+    xml_to_vhdl_tb_functions.print_test_process(root, port_list, outfile)
 
 
 
