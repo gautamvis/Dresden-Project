@@ -1,7 +1,13 @@
 #xml to vhdl helper functions - testbench
+
+#This file contains helper functions to create the testbench file
+#Includes printing the in/out ports of the component, printing out some VHDL functions to use,
+#Printing the signals, the port map, and finally the test process
+
 import xml_to_vhdl_design_functions
 
-#Print some generic info, then run the 'print_ports' function
+
+#Print architecture and entity, then run the 'print_ports' function
 
 def print_component(root, port_list, arch_name, entity_name):
 
@@ -164,9 +170,7 @@ def print_test_process(root, port_list):
 
     #Used to determine length of strings provided in input files,
     #and written to the output file
-    in_width = 0
-    out_width = 0
-    in_width, out_width = find_input_output_width(root, in_width, out_width)
+    in_width, out_width = find_input_output_width(root)
     
     
     #Get the input from file and convert to vectors
@@ -268,40 +272,30 @@ def print_test_process(root, port_list):
 
 #Helper function needed when reading in lines from input text file and when outputting
 #Determines the largest input and output ports
-def find_input_output_width(root, input_width, out_width):
+def find_input_output_width(root):
 
+    input_width = 0
+    output_width = 0
      #Go through each port of each block
     cxn_list = root.findall('connection')
     
     for block in root.findall('block'):
         for port in block:
             
-            
             #Search through list of connections, to determine if
             #port has an internal connection. If so, continue
-            continue_p = false;
-
-            for cxn in cxn_list:
-
-                if ( (cxn.get('srcBlk') == block.get('name') and
-                    cxn.get('srcPort') == port.get('name') ) or
-                     
-                     (cxn.get('destBlk') == block.get('name') and
-                    cxn.get('destPort') == port.get('name') ) ):
-
-                        continue_p = true
-                        break
-            if continue_p == true:
+            if xml_to_vhdl_design_functions.sig_exists(cxn_list, block.get('name'), port.get('name')) == True:
                 continue
             
             #If port doesn't have a cxn, it is an input/output port
             #FIXME? - Currently not considering inputting carry bits
-            #         only considering larger input ports
             if port.get('type') == 'in' and int(port.get('width')) > 1:
                 input_width += int(port.get('width'))
             
-            elif port.get('type') == 'out' and int(port.get('width')) > out_width:
-                out_width = int(port.get('width'))
+            elif port.get('type') == 'out' and int(port.get('width')) > output_width:
+                output_width = int(port.get('width'))
     
-    return input_width, out_width
+    return input_width, output_width
+
+
 

@@ -1,6 +1,7 @@
 #Generate xml file for filter
 
-#Function takes in command line input and outputs an xml file detailing a biquad or fir filter
+#Function takes in command line input(.xml file to create, type of filter,
+# number of stages, and name of the .txt file with coefficients for multipliers
 #Run program with the '-h' flag only to see help
 
 #Import helper functions from file 'gen_filter_helpers.py' and command line parser

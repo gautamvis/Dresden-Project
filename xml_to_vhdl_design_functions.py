@@ -24,19 +24,7 @@ def store_ports(root, port_list):
             #Search through list of connections, to determine if
             #there is a connection involving the port. If so, do nothing
             #If signal is found, bool allows loop to continue
-            continue_p = false;
-
-            for cxn in cxn_list:
-
-                if ( (cxn.get('srcBlk') == block.get('name') and
-                    cxn.get('srcPort') == prt.get('name') ) or
-                     
-                     (cxn.get('destBlk') == block.get('name') and
-                    cxn.get('destPort') == prt.get('name') ) ):
-
-                        continue_p = true;
-                        break;
-            if continue_p == true:
+            if sig_exists(cxn_list, block.get('name'), prt.get('name')) == True:
                 continue
 
             port_list.append(port(block.get('name') + '_' + prt.get('name'),
@@ -124,15 +112,15 @@ def print_signals(root, arch_name, entity_name):
 
 
     #Print each signal in the dictionary of signals
-    for key, value in signal_dict.items():
+    for signal, width in signal_dict.items():
         
         if value > 1:
             print("signal {sig}_buffer : std_logic_vector({size} downto 0);"
-                  .format(sig = key, size = value - 1),
+                  .format(sig = signal, size = width - 1),
             )
         else:
             print("signal {sig}_buffer : std_logic;"
-                      .format(sig = key),
+                      .format(sig = signal),
             )
 
 def print_blocks(root, clockreset, arch_name):
@@ -267,3 +255,22 @@ def print_port_in_block(blockname, portname, type, width):
                     pname = portname)
               ,end=""
         )
+
+
+#Function to determine whether an internal signal exists for the given port
+#Searches the list of connections given in the xml, to see if the source port
+#   of a connection matches the current port
+def sig_exists(cxn_list, blockname, portname):
+
+    for cxn in cxn_list:
+
+        if ( (cxn.get('srcBlk') == blockname and
+            cxn.get('srcPort') == portname ) or
+             
+             (cxn.get('destBlk') == blockname and
+            cxn.get('destPort') == portname) ):
+
+                return True
+
+    return False
+
