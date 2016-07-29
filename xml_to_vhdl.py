@@ -31,7 +31,7 @@ root = tree.getroot()
 
 #FIXME parse these when these names are added to the source file (currently are not)
 temparchname = "structural"
-tempentityname = "ser_add"
+tempentityname = "biquad"
 
 #Store certain ports (name, type, width) that are repeatedly used in an array
 port_list = []
@@ -58,7 +58,6 @@ with open(designfile, 'w+') as outfile:
     xml_to_vhdl_design_functions.print_signals(root, temparchname, tempentityname)
     xml_to_vhdl_design_functions.print_blocks(root, clockreset, temparchname)
 
-
 #Print all output to the testbench file
 with open(tbfile, 'w+') as outfile:
 
@@ -71,38 +70,21 @@ with open(tbfile, 'w+') as outfile:
           'use ieee.std_logic_1164.all; \n'
           'use ieee.numeric_std.all; \n'
           'use std.textio.all; \n'
-          'use work.all; \n\n'
+          'use work.all; \n'
+          'use work.str_to_stdvec_helpers.all; \n\n'
           'entity {ent}_tb is \n'
           'end entity {ent}_tb; \n'
     
-        .format(ent = tempentityname, arch = temparchname)
+        .format(ent = tempentityname, arch = "test")
         ,file=outfile
     )
-
-
 
     #Run the set of helper functions to create the testbench
     #These helper functions are found in 'xml_to_vhdl_tb_functions'
     #Separate functions to print the component, print pre-written functions to convert
     #  a string to a std_vec and vice versa in vhdl, to print the signals, to print the
     #  the port map, and to print the process
-    xml_to_vhdl_tb_functions.print_component(root, port_list, temparchname, tempentityname)
-    xml_to_vhdl_tb_functions.print_string_to_stdvec_fxns()
+    xml_to_vhdl_tb_functions.print_component(root, port_list, "test", tempentityname)
     xml_to_vhdl_tb_functions.print_signals_tb(port_list)
-    xml_to_vhdl_tb_functions.print_port_map_tb(port_list)
+    xml_to_vhdl_tb_functions.print_port_map_tb(port_list, tempentityname)
     xml_to_vhdl_tb_functions.print_test_process(root, port_list)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -4,9 +4,10 @@
 # number of stages, and name of the .txt file with coefficients for multipliers
 #Run program with the '-h' flag only to see help
 
-#Import helper functions from file 'gen_filter_helpers.py' and command line parser
+#Import helper functions from file 'gen_filter_helpers.py', command line parser, sys
 import gen_filter_helpers
 from argparse import ArgumentParser
+import sys
 
 #Parse command line to determine name of outputfile, type of filter, number of stages,
 #And name of the text file from which coefficients for the multipliers are inputted
@@ -26,22 +27,27 @@ num_stages = int(args.stages)
 
 with open(my_outfile, 'w+') as outfile:
     
+    sys.stdout = outfile
+    
     #Print some generic xml stuff
     print('<?xml version="1.0" encoding="UTF-8"?> \n'
           '<network> \n'
-          ,file=outfile
     )
     
     #Run helper functions to print the filter based on the type of filter
     
     #Biquad
-    if filter_type == "biquad":
-        gen_filter_helpers.print_biquad(num_stages, outfile)
+    if filter_type == "biquad1":
+        gen_filter_helpers.print_biquad_one(num_stages)
+    
+    #Biquad v2
+    
+    if filter_type == "biquad2":
+        gen_filter_helpers.print_biquad_two(num_stages)
     
     #FIR
     if filter_type == "FIR":
-        gen_filter_helpers.print_fir(num_stages, outfile)
+        gen_filter_helpers.print_fir(num_stages)
     
 
-    print('</network>' ,file=outfile
-)
+    print('</network>')
