@@ -50,9 +50,9 @@ def print_biquad_one(num_stages):
 
 def print_biquad_two(num_stages):
 
-     for stage in range(num_stages):
+    for stage in range(num_stages):
     
-        #Print blocks (4 add, 6 mult, 4 delay per stage)
+        #Print blocks (4 add, 5 mult, 4 delay per stage)
         #Current defaults are generic_add and generic_mul
         print_blocks('add', 'add', 'generic_add', 4, stage)
         print_blocks('mul_a', 'mul', 'generic_mul', 2, stage)
@@ -65,27 +65,25 @@ def print_biquad_two(num_stages):
         print_cxn('delay_b0', 'A_output', 'mul_b1', 'A_input', stage)
         print_cxn('delay_b1', 'A_output', 'mul_b2', 'A_input', stage)
 
-        print_cxn('delay_a0', 'A_output', 'delay_a2', 'A_input', stage)
+        print_cxn('delay_a0', 'A_output', 'delay_a1', 'A_input', stage)
         print_cxn('delay_a0', 'A_output', 'mul_a0', 'A_input', stage)
         print_cxn('delay_a1', 'A_output', 'mul_a1', 'A_input', stage)
         
+        print_cxn('mul_b0', 'Z', 'add0', 'B_input', stage)
+        print_cxn('mul_b1', 'Z', 'add2', 'B_input', stage)
         print_cxn('mul_b2', 'Z', 'add3', 'B_input', stage)
+        print_cxn('mul_a0', 'Z', 'add1', 'A_input', stage)
         print_cxn('mul_a1', 'Z', 'add3', 'A_input', stage)
 
-        print_cxn('mul_b1', 'Z', 'add2', 'B_input', stage)
         print_cxn('add3', 'Sum', 'add2', 'A_input', stage)
         print_cxn('add3', 'C_out', 'add2', 'C_in', stage)
         
         print_cxn('add2', 'Sum', 'add1', 'B_input', stage)
-        print_cxn('mul_a0', 'Z', 'add1', 'A_input', stage)
         print_cxn('add2', 'C_out', 'add1', 'C_in', stage)
         
         
-        print_cxn('mul_b0', 'Z', 'add0', 'B_input', stage)
         print_cxn('add1', 'Sum', 'add0', 'A_input', stage)
         print_cxn('add1', 'C_out', 'add0', 'C_in', stage)
-
-        print_cxn('add0', 'Sum', 'delay_a0', 'A_input', stage)
         
 
         #Connecting output of one stage to input of next
@@ -94,10 +92,10 @@ def print_biquad_two(num_stages):
 
             print_cxn('add0', 'Sum', 'delay0', 'A_input', stage, "nextstage")
             print_cxn('add0', 'Sum', 'mul_b0', 'A_input', stage, "nextstage")
-
         
-        print('\n\n')
-
+    #Last sum port in filter is both an output port and a signal
+    #Assuming an output width of 32 in this case 
+    print_dualcxn('add0', 'Sum', 32, 'delay_a0', 'A_input', num_stages-1)
 
 
 #Print an FIR filter
@@ -194,9 +192,9 @@ def print_mult_ports():
 #Print a delay block
 def print_delay_ports():
 
-    print_port("A_input", "in", "32")
+    print_port("A_input", "in", "16")
     print_port("clk", "in", "1")
-    print_port("A_output", "out", "32")
+    print_port("A_output", "out", "16")
     
 
 def get_coefficients(sourcefile):
@@ -206,5 +204,12 @@ def get_coefficients(sourcefile):
         coeff_list = source.readlines()
 
     return coeff_list
+
+#For connections which serve as both outputs and internal signals
+def print_dualcxn(srcBlk, srcPort, srcWidth, destBlk, destPort, stage):
+
+    print('\n  <dualconnection srcBlk="{sb}_stg{num}" srcPort="{sp}" srcWidth="{sw}" destBlk="{db}_stg{num}" destPort="{dp}"/>'
+          .format(sb=srcBlk, sp=srcPort, sw = srcWidth, num = stage,db=destBlk, dp=destPort))
+          
 
 

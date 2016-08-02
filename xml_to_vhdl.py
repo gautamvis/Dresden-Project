@@ -1,7 +1,8 @@
 #xml to vhdl converter
 
-#Take in command line input, to get the names of input file(.xml),
-#the intended names of the design file(.vhdl), and testbench file(.vhdl) produced
+#Take in command line input, to get the names of input files(.xml and .txt),
+#the intended names of the design file(.vhdl), and testbench file(.vhdl)
+#and the name of the output file (.txt) produced when the testbench is run
 #And enable clock/reset mode, to prints blocks with clock and reset ports
 
 #Import the files containing helper functions, ElementTree, a library used to help parsing xml files
@@ -18,10 +19,18 @@ parser.add_argument("-i", "--inputfile", help="XML file name")
 parser.add_argument("-d", "--designfile", help="Name of file containing design")
 parser.add_argument("-t", "--tbfile", help="Name of file containing testbench")
 parser.add_argument("-c", "--clockreset",help="To create blocks with clock/reset ports, type 'on'")
+parser.add_argument("-tfi", "--testbenchfilein",
+                    help="Name of input file containing 32bit numbers (for testbench)")
+parser.add_argument("-tfo", "--testbenchfileout",
+                    help="Name of file that the testbench should output)")
+
+
 args = parser.parse_args()
 infile = args.inputfile
 designfile = args.designfile
 tbfile = args.tbfile
+test_file_in = args.testbenchfilein
+test_file_out = args.testbenchfileout
 clockreset = 'off' #off by default
 clockreset = args.clockreset
 
@@ -56,7 +65,7 @@ with open(designfile, 'w+') as outfile:
     #Separate functions to print in/out ports, to print the connections, and to print the blocks
     xml_to_vhdl_design_functions.print_ins_outs(root, port_list, clockreset, tempentityname)
     xml_to_vhdl_design_functions.print_signals(root, temparchname, tempentityname)
-    xml_to_vhdl_design_functions.print_blocks(root, clockreset, temparchname)
+    xml_to_vhdl_design_functions.print_blocks(root, port_list, clockreset, temparchname)
 
 #Print all output to the testbench file
 with open(tbfile, 'w+') as outfile:
@@ -87,4 +96,5 @@ with open(tbfile, 'w+') as outfile:
     xml_to_vhdl_tb_functions.print_component(root, port_list, "test", tempentityname)
     xml_to_vhdl_tb_functions.print_signals_tb(port_list)
     xml_to_vhdl_tb_functions.print_port_map_tb(port_list, tempentityname)
-    xml_to_vhdl_tb_functions.print_test_process(root, port_list)
+    xml_to_vhdl_tb_functions.print_test_process(root, port_list, test_file_in, test_file_out)
+

@@ -23,6 +23,7 @@ args = parser.parse_args()
 my_outfile = args.outputfile
 filter_type = args.type
 num_stages = int(args.stages)
+coeff_file = args.coefficients
 
 
 with open(my_outfile, 'w+') as outfile:
@@ -34,20 +35,30 @@ with open(my_outfile, 'w+') as outfile:
           '<network> \n'
     )
     
-    #Run helper functions to print the filter based on the type of filter
+    #Run helper functions to print the filter's blocks, ports, connections, and dualconnections
     
     #Biquad
     if filter_type == "biquad1":
         gen_filter_helpers.print_biquad_one(num_stages)
     
     #Biquad v2
-    
     if filter_type == "biquad2":
         gen_filter_helpers.print_biquad_two(num_stages)
     
     #FIR
     if filter_type == "FIR":
         gen_filter_helpers.print_fir(num_stages)
-    
 
-    print('</network>')
+
+    #Print the filter's constant coefficients from coefficients.txt file
+    with open(coeff_file, 'r') as infile:
+
+        lines = infile.read().splitlines()
+        
+        for line in lines:
+            destBlk, destPort, value = line.split()
+            print('  <constant destBlk="{dB}" destPort="{dP}" value="{val}"/>'
+                  .format(dB = destBlk, dP = destPort, val = value))
+
+
+    print('\n</network>')

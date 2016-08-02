@@ -17,9 +17,10 @@ class port:
 #Create an array of ports(port_list) used in both design file and testbench file
 def store_ports(root, port_list):
 
-    #Go through each port of each block
     cxn_list = root.findall('connection')
+    dualcxn_list = root.findall('dualconnection')
     
+    #Go through each port of each block
     for block in root.findall('block'):
         for prt in block:
             continue_p = False
@@ -29,11 +30,21 @@ def store_ports(root, port_list):
             #If signal is found, bool allows loop to continue
                 if sig_exists(cxn, block.get('name'), prt.get('name')):
                     continue_p = True
-        
+                    break
             if continue_p:
                 continue
             
-            
+            #Search through dualconnections - continue if found
+            for dualcxn in dualcxn_list:
+                if dualsig_exists(dualcxn, block.get('name'), prt.get('name')):
+                    continue_p = True
+                    break
+            if continue_p:
+                continue
+
+            #Dont add clock ports to the portlist
+            if prt.get('name') == 'clk':
+                continue
             
             port_list.append(port(block.get('name') + '_' + prt.get('name'),
                                   int(prt.get('width')),
@@ -46,11 +57,9 @@ def print_ins_outs(root, port_list, clockreset, entity_name):
     #Print entity name + formatting
     print("entity " + entity_name + " is \n\n    port( ")
     
-    #Print clock reset ports, if enabled
-    if clockreset == 'on':
-        for block in root.findall('block'):
-            print("    " + block.get('name') + "_clk : in std_logic;\n" +
-                  "    " + block.get('name') + "_reset : in std_logic;")
+    #Print clock/reset ports
+    print("    clk_in : in std_logic;\n" +
+          "    reset_in : in std_logic;")
     
     #Print ports + end formatting
     print(";\n".join(get_port_in_entity(port.name, port.width, port.type) for port in port_list)
@@ -89,16 +98,36 @@ def print_signals(root, arch_name, entity_name):
         #Find each signal with root.find, and add to the dictionary each signal_name, width pair
         signal_dict[signal_name] = int(root.find(".*[@name='"+src_blk+"']/*[@name='"+src_port+"']").get('width'))
 
+    #Add dualsignals to the dictionary of signals
+    for dualcxn in root.iter('dualconnection'):
+        src_blk = str(dualcxn.get('srcBlk'))
+        src_port = str(dualcxn.get('srcPort'))
+        signal_name = src_blk + "_" + src_port
+    
+        signal_dict[signal_name] = int(root.find(".*[@name='"+src_blk+"']/*[@name='"+src_port+"']").get('width'))
+
+    
     #Print each signal in the dictionary of signals
     print("\n".join(get_sig(signal,width) for signal, width in signal_dict.items()))
 
 
-def print_blocks(root, clockreset, arch_name):
+def print_blocks(root, port_list, clockreset, arch_name):
     
-    print('\nbegin\n')
+    print('\nbegin')
+    
+    #Print the following process for testbench to function
+    output_port = find_output_port(port_list)
+    print('''
+    process ({outport}_buffer) begin
+    {outport} <= {outport}_buffer;
+    end process;
+          '''
+        .format(outport = output_port)
+    )
    
     #List of connections and constants from xml file
     cxn_list = root.findall('connection')
+    dualcxn_list = root.findall('dualconnection')
     const_list = root.findall('constant')
 
     #For each block in the xml file
@@ -113,11 +142,11 @@ def print_blocks(root, clockreset, arch_name):
         #Include clock and reset ports, if enabled
         if(clockreset == 'on'):
         
-            print("    clk => " + block.get('name')+"_clk,\n"+
-                  "    reset => " + block.get('name')+"_reset,")
+            print("    clk => clk_in,\n"+
+                  "    reset => reset_in,")
 
         #Print the port + formatting
-        print(",\n".join(get_port_in_block(cxn_list, const_list, block.get('name'),port.get('name'),
+        print(",\n".join(get_port_in_block(cxn_list, dualcxn_list, const_list, block.get('name'),port.get('name'),
         int(port.get('width')), port.get('type')) for port in block), "\n    );\n")
 
     print("end {arch};" .format(arch=arch_name))
@@ -145,13 +174,20 @@ def get_port_in_entity(portname, width, type):
     return "    " + portname + " : " + type + " std_logic"
 
 #Returns a string containing the line to print, given a port in block declaration
-def get_port_in_block(cxn_list, const_list, blockname, portname, width, type):
+def get_port_in_block(cxn_list, dualcxn_list, const_list, blockname, portname, width, type):
 
+    #If connection exists, retun the line to print
     for cxn in cxn_list:
-        
-        #If connection exists, retun the line to print
         if sig_exists(cxn, blockname, portname):
             return "    " + portname + " => " + cxn.get('srcBlk') + "_" + cxn.get('srcPort') + "_buffer"
+
+    #If dual connection exists, return line to print
+    for dualcxn in dualcxn_list:
+        if sig_exists(dualcxn, blockname, portname):
+            return ("    " + portname + " => " + dualcxn.get('srcBlk') + "_"
+                   + dualcxn.get('srcPort') + "_buffer(" + str(int(dualcxn.get('srcWidth'))-1) + " downto "
+                   + str(int(dualcxn.get('srcWidth')) - width) + ")")
+
 
     #If port is a clock input
     if portname == 'clk':
@@ -197,7 +233,31 @@ def const_exists(const_list, blockname, portname, width, fullname):
             #convert value to binary, and pad with 0's depending on port width
             return bin(int(const.get('value')))[2:].zfill(int(width))
 
-
     return -1
+
+#Checks if there is a dualsignal associated with the port
+#Dual signal = port is used both as an input/output buffer and an internal connection
+def dualsig_exists(dualcxn, blockname, portname):
+    
+    if dualcxn.get('destBlk') == blockname and dualcxn.get('destPort') == portname:
+        return True
+        
+    return False
+
+#Returns output port (the largest, by default)
+#This is required for filters in which the output port serves as a signal also
+def find_output_port(port_list):
+
+    temp_port = port_list[0]
+    
+    for port in port_list:
+        if port.type == 'out' and port.width > temp_port.width:
+            temp_port = port
+
+    return temp_port.name
+
+
+
+
 
 
