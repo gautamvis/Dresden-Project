@@ -7,40 +7,70 @@
 import xml_to_vhdl_design_functions
 
 #Print architecture and entity, followed by ports
-def print_component(root, port_list, arch_name, entity_name):
+def print_component(root, port_list, entity_name):
 
-    print('''architecture {arch} of {ent}_tb is 
+    print('''architecture test of {ent}_tb is
     
     component {ent} is
     
     port('''
-    .format(arch = arch_name, ent = entity_name)
+    .format(ent = entity_name)
     )
     
-    #Print clock and reset ports by default
-    print("    clk_in : in std_logic; \n    reset_in : in std_logic;")
-    
-    #Print ports + end formatting
-    print("    " + ";\n    ".join(get_port(port.name, port.width, port.type) for port in port_list)
-          + "\n    );\n\n   end component;\n")
+    #This port list is the same as the one printed in the design file
+    xml_to_vhdl_design_functions.print_ports(port_list, "component")
 
 #Print the signals
-def print_signals_tb(port_list):
-
-    print("    " + "\n    ".join(get_signal_tb(port.name, port.width) for port in port_list)
-          + "\n    signal done : std_logic := '0';"
+def print_signals_tb(root, port_list):
+    
+    #Only need to find the output width in this case (for sum_buffer)
+    junk, out_width = find_input_output_width(root, port_list)
+    
+    #Get and print the signal associated with each port in the list, along with default clock, rst, sum_buffer signals
+    print("    " + "\n    ".join(xml_to_vhdl_design_functions.get_sig(port.name, port.width) for port in port_list)
           + "\n    signal clock : std_logic := '0';"
-          + "\n    signal rst : std_logic := '0'; \n")
-
+          + "\n    signal rst : std_logic := '0'; \n"
+          + "\n    signal sum_buffer : std_logic_vector({ow} downto 0); \n"
+          .format(ow = str(int(out_width-1))))
 
 #Print the port map + formatting
 def print_port_map_tb(port_list, entity_name):
 
-    print ("begin \n\nDUT : " + entity_name + " \n\n    port map( \n\n"
+    print ("begin \n\nDUT : " + entity_name + " \n\n    port map( \n"
            + "    clk_in => clock, \n"
            + "    reset_in => rst, \n    "
            +",\n    ".join(get_port_in_port_map(port.name, port.width) for port in port_list)
            + "\n    );\n")
+
+#Print clock and reset processes
+def print_clock_and_rst_process(port_list):
+
+    print('''
+    clk_process : process
+      begin --clock
+      wait for 2 ns;
+        while true loop
+           clock <= '0';
+           wait for 1 ns;
+           clock <= '1';
+           wait for 1 ns;
+        end loop;
+    end process clk_process; 
+    
+    seq: process (clock,rst)
+       begin
+         if (clock'event and clock = '1') then
+            if (rst = '1') then     
+                sum_buffer  <= (others => '0');
+            else
+                sum_buffer  <= {sum_out}_buffer;
+            end if;
+         end if;        
+    end process;
+    '''
+    .format(sum_out = xml_to_vhdl_design_functions.find_output_port(port_list))
+    )
+
 
 #Print the entire testing process
 def print_test_process(root, port_list, test_file_in, test_file_out):
@@ -64,13 +94,18 @@ def print_test_process(root, port_list, test_file_in, test_file_out):
         
         begin
         
-        file_open(vector_file, "{t_in}", READ_MODE);
-        file_open(output_file, "{t_out}", WRITE_MODE);
+            file_open(vector_file, "{t_in}", READ_MODE);
+            file_open(output_file, "{t_out}", WRITE_MODE);
         
-        while not endfile(vector_file) loop
-            readline(vector_file, file_line_in);
-            read(file_line_in, str_stimulus_in);
-            stimulus_in := str_to_stdvec(str_stimulus_in);
+            rst <= '1';
+            wait for 2 ns;
+            rst <= '0';
+
+        
+            while not endfile(vector_file) loop
+                readline(vector_file, file_line_in);
+                read(file_line_in, str_stimulus_in);
+                stimulus_in := str_to_stdvec(str_stimulus_in);
     
             '''
             .format(in_w_minusone = in_width - 1, in_w = in_width, out_w = out_width,
@@ -101,9 +136,8 @@ def print_test_process(root, port_list, test_file_in, test_file_out):
                   .format(sname = port.name)
             )
     
-        #FIMXE? - As of now, only taking non-carry bits from input
-        #Carry bits are set to 0 by default
-        elif port.width > 1 and port.type == 'in':
+        #Multiple bit input
+        elif port.type == 'in' and port.width > 1:
 
             print("     {sname}_buffer <= stimulus_in({num1} downto {num2}); "
                   .format(sname = port.name,
@@ -112,13 +146,14 @@ def print_test_process(root, port_list, test_file_in, test_file_out):
             )
             input_width_tracker += port.width
 
-        #Set carry bits to 0 instead of inputting
+        #Single bit input
         elif port.type == 'in':
         
-            print("     {sname}_buffer <= '0'; "
-                  .format(sname = port.name)
+            print("     {sname}_buffer <= stimulus_in({num1}); "
+                  .format(sname = port.name, num1 = input_width_tracker)
             )
-        
+            input_width_tracker += 1
+
         #These next two lines determine the port whose
         #   contents will be written to output file
         #This is determined by taking the output port mentioned
@@ -143,7 +178,7 @@ def print_test_process(root, port_list, test_file_in, test_file_out):
                         write(file_line_out, bit'('0'));
                     end if;
                     
-                    str_stimulus_out := stdvec_to_str({outport}_buffer);
+                    str_stimulus_out := stdvec_to_str(sum_buffer);
                     
                     write(file_line_out, str_stimulus_out);
                     writeline(output_file, file_line_out);
@@ -155,57 +190,20 @@ def print_test_process(root, port_list, test_file_in, test_file_out):
             end process Read_input;
 
     end test;'''
-        .format(outport = out_port_name
-                ,outbuffer = out_buffer_name)
+        .format(outbuffer = out_buffer_name)
         )
 
 #Helper function needed when reading in lines from input text file and when outputting
 #Determines total width of all the inputs (ex. if 3 32 bit inputs, total width = 96
 #   this number is used to divide the inputs in the test process
 #Also determines the width of the output(assuming there is only one final output value)
-#def find_input_output_width(root):
-#
-#    input_width = 0
-#    output_width = 0
-#    #Go through each port of each block
-#    cxn_list = root.findall('connection')
-#    const_list = root.findall('constant')
-#    
-#    for block in root.findall('block'):
-#        for port in block:
-#            continue_p = False
-#            for cxn in cxn_list:
-#            #Search through list of connections, to determine if
-#            #port has an internal connection. If so, continue
-#                if xml_to_vhdl_design_functions.sig_exists(cxn, block.get('name'), port.get('name')):
-#                    continue_p = True
-#                    break
-#            
-#            if continue_p:
-#                continue
-#            
-#            #If port doesn't have a cxn, it is an input/output port
-#            
-#            #If port has a constant input, ignore it
-#            if xml_to_vhdl_design_functions.const_exists(const_list,
-#                         block.get('name'), port.get('name'), port.get('width'), "") != -1:
-#                continue
-#            
-#            #If port is an input (and not a clock/reset), add its width to total
-#            if port.get('type') == 'in' and port.get('name') != ('clk' or 'reset'):
-#                input_width += int(port.get('width'))
-#            
-#            elif port.get('type') == 'out' and int(port.get('width')) > output_width:
-#                output_width = int(port.get('width'))
-#    
-#    return input_width, output_width
 def find_input_output_width(root, port_list):
 
     input_width = 0
     output_width = 0
     const_list = root.findall('constant')
     
-    #Go through each port in port list
+    #Check each input/output port, ensuring that input ports are not constant
     for port in port_list:
         
         #If port has a constant input, ignore it
@@ -213,41 +211,15 @@ def find_input_output_width(root, port_list):
                      "","", port.width, port.name) != -1:
             continue
         
-        #If port is an input (and not a clock/reset), add its width to total
+        #If port is an input add its width to total
         if port.type == 'in':
             input_width += port.width
-        
+    
+        #Else store the value of the largest output port
         elif port.type == 'out' and port.width > output_width:
             output_width = port.width
     
     return input_width, output_width
-
-
-
-
-
-
-
-
-#Returns a string containing the line to print, given a port
-def get_port(name, width, type):
-
-    #Port with multiple bit input/output (std_logic_vector)
-    if width > 1:
-        return name + " : " + type + " std_logic_vector(" + str(width - 1) + " downto 0)"
-    
-    #Port with single bit input/output (std_logic)
-    return name + " : " + type + " std_logic"
-
-#Returns a string containing the line to print, given a port:
-def get_signal_tb(name, width):
-
-    #Port with multiple bit input/output (std_logic_vector)
-    if width > 1:
-        return 'signal ' + name + '_buffer : std_logic_vector(' + str(width - 1) + ' downto 0);'
-    
-    #Port with single bit input/output (std_logic)
-    return 'signal ' + name + '_buffer : std_logic;'
 
 #Returns a string containing the line to print, given a port (in port map declaration)
 def get_port_in_port_map(name, width):
@@ -258,3 +230,4 @@ def get_port_in_port_map(name, width):
     
     #Port with single bit input/output
     return name + " => " + name + "_buffer"
+
